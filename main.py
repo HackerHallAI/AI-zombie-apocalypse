@@ -440,22 +440,27 @@ class Zombie:
             self.x = -ZOMBIE_WIDTH
             self.y = random.randint(0, SCREEN_HEIGHT - ZOMBIE_HEIGHT)
 
-        self.speed = ZOMBIE_SPEED
+        self.speed = ZOMBIE_SPEED  # Default speed that can be modified
 
-    def move(self, player_x, player_y):
-        """Move the zombie toward the player."""
-        # Calculate direction vector to player
-        dx = player_x - self.x
-        dy = player_y - self.y
+    def move(self, target_x, target_y):
+        # Calculate direction to player
+        dx = target_x - (self.x + ZOMBIE_WIDTH // 2)
+        dy = target_y - (self.y + ZOMBIE_HEIGHT // 2)
 
-        # Normalize the direction vector
-        distance = max(1, (dx**2 + dy**2) ** 0.5)  # Avoid division by zero
-        dx = dx / distance
-        dy = dy / distance
+        # Normalize the direction
+        length = max(0.1, math.sqrt(dx * dx + dy * dy))
+        dx /= length
+        dy /= length
 
-        # Move zombie toward player
+        # Move towards player with the zombie's current speed
         self.x += dx * self.speed
         self.y += dy * self.speed
+
+        # Update direction for animation
+        if abs(dx) > abs(dy):
+            self.direction = "right" if dx > 0 else "left"
+        else:
+            self.direction = "down" if dy > 0 else "up"
 
     def draw(self):
         """Draw the zombie using the zombie image."""
@@ -937,6 +942,14 @@ def game_loop():
     message_timer = 0
     game_tick = 0  # Add a game tick counter
 
+    # Wave system variables
+    current_wave = 1
+    wave_timer = 0
+    wave_duration = 1800  # 30 seconds per wave at 60 FPS
+    zombies_per_wave = 1  # Base number of zombies to spawn per second
+    wave_message = ""
+    wave_message_timer = 0
+
     while not game_over:
         # Increment game tick each frame
         game_tick += 1
@@ -977,10 +990,37 @@ def game_loop():
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             player.move("down")
 
-        # Spawn zombies periodically
+        # Replace the zombie spawning code with this wave-based system
+        # Update wave timer
+        wave_timer += 1
+        if wave_timer >= wave_duration:
+            current_wave += 1
+            wave_timer = 0
+            wave_message = f"Wave {current_wave} incoming!"
+            wave_message_timer = 180  # Show for 3 seconds
+
+            # Increase difficulty with each wave
+            zombies_per_wave = (
+                1 + current_wave // 2
+            )  # Increase zombies per second every 2 waves
+
+        # Spawn zombies based on current wave
         zombie_spawn_timer += 1
-        if zombie_spawn_timer >= 60:  # Spawn every second
-            zombies.append(Zombie())
+        spawn_rate = max(
+            10, 60 // zombies_per_wave
+        )  # Adjust spawn rate based on zombies per wave
+        if zombie_spawn_timer >= spawn_rate:  # Spawn rate increases with wave
+            # Spawn multiple zombies at once in later waves
+            zombies_to_spawn = (
+                1 + current_wave // 3
+            )  # Spawn more zombies at once in later waves
+            for _ in range(zombies_to_spawn):
+                new_zombie = Zombie()
+                # Make zombies faster in later waves
+                new_zombie.speed = min(
+                    4.0, ZOMBIE_SPEED * (1 + current_wave * 0.1)
+                )  # Cap at 4.0
+                zombies.append(new_zombie)
             zombie_spawn_timer = 0
 
         # Update zombies and check collisions
@@ -1005,7 +1045,7 @@ def game_loop():
 
                 # Only take damage if shield is not active
                 if player.active_powerups["Shield"] <= 0:
-                    player.take_damage(10)
+                    player.take_damage(25)  # Increased from 10 to 25 (4 hits to kill)
                 else:
                     # Shield absorbs the hit
                     player.score += 5  # Bonus for blocking with shield
@@ -1236,6 +1276,34 @@ def game_loop():
                         ),
                         1,
                     )
+
+        # Add this to the drawing section, after drawing the score
+        # Draw wave number
+        wave_text = SCORE_FONT.render(f"Wave: {current_wave}", True, (200, 200, 255))
+        screen.blit(wave_text, (SCREEN_WIDTH - 150, 40))
+
+        # Draw wave message if active
+        if wave_message_timer > 0:
+            wave_message_timer -= 1
+            wave_msg_font = pygame.font.SysFont("arial", 36)
+            wave_msg_surf = wave_msg_font.render(wave_message, True, (255, 100, 100))
+
+            # Fade out near the end
+            if wave_message_timer < 60:
+                alpha = int(255 * (wave_message_timer / 60))
+                temp_surf = pygame.Surface(wave_msg_surf.get_size(), pygame.SRCALPHA)
+                temp_surf.fill((255, 255, 255, alpha))
+                wave_msg_surf.blit(
+                    temp_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT
+                )
+
+            screen.blit(
+                wave_msg_surf,
+                (
+                    SCREEN_WIDTH // 2 - wave_msg_surf.get_width() // 2,
+                    SCREEN_HEIGHT // 3,
+                ),
+            )
 
         pygame.display.flip()
         clock.tick(FPS)
@@ -1853,6 +1921,14 @@ async def async_game_loop():
     message_text = ""
     message_timer = 0
     game_tick = 0  # Add a game tick counter
+
+    # Wave system variables
+    current_wave = 1
+    wave_timer = 0
+    wave_duration = 1800  # 30 seconds per wave at 60 FPS
+    zombies_per_wave = 1  # Base number of zombies to spawn per second
+    wave_message = ""
+    wave_message_timer = 0
 
     while not game_over:
         # Increment game tick each frame

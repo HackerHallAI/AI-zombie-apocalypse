@@ -14,7 +14,7 @@ jobs:
 
       - name: Create Supabase Config
         run: |
-          cat > zombie-js/supabase-config.js << 'EOL'
+          cat > supabase-config.js << 'EOL'
           // Supabase configuration
           window.supabaseConfig = {
             supabaseUrl: "${{ secrets.SUPABASE_URL }}",

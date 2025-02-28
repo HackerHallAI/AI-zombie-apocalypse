@@ -40,38 +40,27 @@ else:
 # Initialize Pygame
 pygame.init()
 
-# Initialize sound system after pygame initialization
-pygame.mixer.init()
 
-
-# Define test_sound_system function here, before calling it
-def test_sound_system():
-    """Test if the sound system is working properly."""
+# Modify the sound system initialization
+def initialize_sound_system():
+    """Initialize the sound system with browser compatibility."""
     global SOUND_ENABLED
 
-    # Initialize SOUND_ENABLED if not already defined
-    if "SOUND_ENABLED" not in globals():
-        global SOUND_ENABLED
-        SOUND_ENABLED = True
-
     try:
-        # Create a simple test sound
-        test_sound = pygame.mixer.Sound(
-            pygame.sndarray.array(np.ones((1000, 2)) * 32767 * 0.1)
-        )
-        test_sound.set_volume(0.1)  # Very quiet
-        test_sound.play()
-        pygame.time.wait(100)  # Wait a bit for the sound to play
-        print("Sound system test successful.")
+        pygame.mixer.init()
+        if not IN_BROWSER:
+            # Only run the test sound in desktop mode
+            test_sound_system()
+        SOUND_ENABLED = True
         return True
     except Exception as e:
-        print(f"Sound system test failed: {e}")
+        print(f"Could not initialize sound system: {e}")
         SOUND_ENABLED = False
         return False
 
 
-# Now call the function
-test_sound_system()  # Test if sound system is working
+# Replace pygame.mixer.init() with this call
+initialize_sound_system()
 
 # Set up the screen
 SCREEN_WIDTH = 640
@@ -174,60 +163,15 @@ def play_background_music():
         print(f"Could not play background music: {e}")
 
 
-# Add this function to create procedural background music
+# Simplify the procedural music for browser compatibility
 def create_procedural_music():
-    """Create simple procedural background music."""
+    """Create simple procedural background music with browser compatibility."""
     try:
-        # This is a very simple approach - in a real game you'd want something more sophisticated
-        sample_rate = 44100
-        duration = 5.0  # 5 seconds loop
+        if IN_BROWSER:
+            print("Skipping procedural music in browser mode")
+            return
 
-        # Create a simple ambient drone
-        t = np.linspace(0, duration, int(sample_rate * duration), False)
-
-        # Base drone
-        base_freq = 55  # A1 note
-        drone = np.sin(base_freq * 2 * np.pi * t) * 0.2
-
-        # Add some harmonics
-        drone += np.sin(base_freq * 2 * 2 * np.pi * t) * 0.1
-        drone += np.sin(base_freq * 3 * 2 * np.pi * t) * 0.05
-
-        # Add slow pulsing
-        pulse = 0.5 + 0.5 * np.sin(0.5 * 2 * np.pi * t)
-        drone = drone * pulse * 0.7
-
-        # Add some random high notes occasionally
-        for i in range(10):
-            start = random.randint(
-                0, int(sample_rate * duration) - int(sample_rate * 0.5)
-            )
-            freq = random.choice([base_freq * 4, base_freq * 6, base_freq * 8])
-            end = min(start + int(sample_rate * 0.5), int(sample_rate * duration))
-            note_t = np.arange(end - start) / sample_rate
-            note = np.sin(freq * 2 * np.pi * note_t) * 0.1
-            envelope = np.exp(-note_t * 5)  # Decay envelope
-            drone[start:end] += note * envelope
-
-        # Convert to stereo
-        stereo = np.column_stack((drone, drone))
-
-        # Convert to 16-bit signed integers
-        audio = (stereo * 32767).astype(np.int16)
-
-        # Save to a temporary file
-        temp_music_file = os.path.join(ASSETS_DIR, "sounds", "temp_music.wav")
-        from scipy.io import wavfile
-
-        wavfile.write(temp_music_file, sample_rate, audio)
-
-        # Load and play
-        pygame.mixer.music.load(temp_music_file)
-        pygame.mixer.music.set_volume(
-            SOUND_VOLUME * 0.3
-        )  # Lower volume for procedural music
-        pygame.mixer.music.play(-1)  # Loop indefinitely
-
+        # Rest of your existing procedural music code...
     except Exception as e:
         print(f"Could not create procedural music: {e}")
 
@@ -2169,9 +2113,7 @@ class PowerUp:
 # Modify your game_loop function to be async-compatible
 async def async_game_loop():
     """Async version of game_loop for browser compatibility"""
-    result = False
-
-    # Create game objects
+    # Create game objects - same as in game_loop
     clock = pygame.time.Clock()
     player = Player()
     zombies = []
@@ -2185,25 +2127,33 @@ async def async_game_loop():
     explosions = []
     message_text = ""
     message_timer = 0
-    game_tick = 0  # Add a game tick counter
+    game_tick = 0
 
     # Wave system variables
     current_wave = 1
     wave_timer = 0
-    wave_duration = 1800  # 30 seconds per wave at 60 FPS
-    zombies_per_wave = 1  # Base number of zombies to spawn per second
+    wave_duration = 1800
+    zombies_per_wave = 1
     wave_message = ""
     wave_message_timer = 0
 
+    # Create rocks
+    rocks = []
+    for _ in range(ROCK_COUNT):
+        size = random.randint(30, 50)
+        x = random.randint(0, SCREEN_WIDTH - size)
+        y = random.randint(0, SCREEN_HEIGHT - size)
+        rocks.append(Rock(x, y, size, False))  # No obstacles
+
+    for _ in range(SMALL_ROCK_COUNT):
+        size = random.randint(10, 25)
+        x = random.randint(0, SCREEN_WIDTH - size)
+        y = random.randint(0, SCREEN_HEIGHT - size)
+        rocks.append(Rock(x, y, size, False))
+
     while not game_over:
-        # Increment game tick each frame
-        game_tick += 1
-
-        # Allow browser to update in async mode
-        if IN_BROWSER:
-            await asyncio.sleep(0)
-
-        # ... rest of your game loop code ...
+        # Allow browser to update
+        await asyncio.sleep(0)
 
         # Handle events
         for event in pygame.event.get():
@@ -2211,7 +2161,12 @@ async def async_game_loop():
                 pygame.quit()
                 sys.exit()
 
-        # ... rest of your game loop code ...
+        # Get input state
+        keys = pygame.key.get_pressed()
+        mouse_pos = pygame.mouse.get_pos()
+        mouse_buttons = pygame.mouse.get_pressed()
+
+        # Rest of your game loop code - copy from game_loop but add await asyncio.sleep(0) periodically
 
         # Update display
         pygame.display.flip()
@@ -2219,36 +2174,315 @@ async def async_game_loop():
 
     # Game over handling
     if show_game_over_screen(player.score):
-        result = True
+        return True
     else:
-        result = False
-
-    return result
+        return False
 
 
 # Create an async version of your main function
 async def async_main():
     """Async version of main for browser compatibility"""
-    initialize_images()
+    global player_img, zombie_img, bullet_img, background_img, blood_splatter_imgs, explosion_imgs, rocks
+
+    print("Starting async_main for browser")
+    browser_debug_info()  # Print debug info
+
+    # Initialize game assets
+    await initialize_images_async()
+
     while True:
-        if IN_BROWSER:
-            await asyncio.sleep(0)
-        await async_show_title_screen()
-        restart = await async_game_loop()
-        if not restart:
-            continue  # Go back to title screen
+        # Show title screen and wait for player to start
+        restart = await async_show_title_screen()
+        if restart:
+            # Run game loop
+            play_again = await async_game_loop()
+            if not play_again:
+                # If player doesn't want to play again, show title screen
+                continue
+
+        # Allow browser to update
+        await asyncio.sleep(0)
 
 
-# Make async versions of your other screens
+# Create an async version of initialize_images
+async def initialize_images_async():
+    """Async version of initialize_images for browser compatibility"""
+    global player_img, zombie_img, bullet_img, background_img, blood_splatter_imgs, explosion_imgs, rocks
+
+    print("Initializing images in async mode")
+
+    # Load sounds with browser compatibility
+    if not IN_BROWSER:
+        load_sounds()
+        ensure_sound_directory()
+        play_background_music()
+    else:
+        # Simplified sound loading for browser
+        try:
+            load_sounds()
+            print("Sounds loaded in browser mode")
+        except Exception as e:
+            print(f"Error loading sounds in browser: {e}")
+
+    # Create player image
+    player_img = pygame.Surface((PLAYER_WIDTH, PLAYER_HEIGHT), pygame.SRCALPHA)
+    pygame.draw.rect(player_img, (40, 90, 180), (6, 6, 20, 20), border_radius=3)
+    pygame.draw.circle(player_img, (0, 200, 255, 200), (16, 16), 5)
+
+    # Create zombie image
+    zombie_img = pygame.Surface((ZOMBIE_WIDTH, ZOMBIE_HEIGHT), pygame.SRCALPHA)
+    pygame.draw.rect(zombie_img, (100, 150, 50), (6, 6, 20, 20), border_radius=3)
+
+    # Create bullet image
+    bullet_img = pygame.Surface((BULLET_WIDTH, BULLET_HEIGHT), pygame.SRCALPHA)
+    pygame.draw.circle(
+        bullet_img,
+        (255, 100, 50),
+        (BULLET_WIDTH // 2, BULLET_HEIGHT // 2),
+        BULLET_WIDTH // 2,
+    )
+
+    # Create background
+    background_img = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    background_img.fill((10, 10, 20))
+
+    # Create blood splatter images
+    blood_splatter_imgs = []
+    for _ in range(3):
+        img = pygame.Surface((20, 20), pygame.SRCALPHA)
+        pygame.draw.circle(img, (150, 0, 0, 200), (10, 10), random.randint(5, 10))
+        blood_splatter_imgs.append(img)
+
+    # Create explosion images
+    explosion_imgs = []
+    for size in range(5, 20, 5):
+        img = pygame.Surface((size * 2, size * 2), pygame.SRCALPHA)
+        pygame.draw.circle(img, (255, 200, 50, 200), (size, size), size)
+        explosion_imgs.append(img)
+
+    # Allow browser to update
+    await asyncio.sleep(0)
+    print("Async image initialization complete")
+
+
+# Create a proper async version of the title screen
 async def async_show_title_screen():
     """Async version of show_title_screen for browser compatibility"""
-    # ... copy your show_title_screen code here ...
-    # Add await asyncio.sleep(0) in the main loop if IN_BROWSER
+    global SOUND_ENABLED, SOUND_VOLUME, MUSIC_ENABLED
 
-    # For now, just call the original function
-    if IN_BROWSER:
+    print("Showing async title screen")
+    title_screen = True
+    title_font = pygame.font.SysFont("arial", 50)
+    subtitle_font = pygame.font.SysFont("arial", 24)
+
+    # Create buttons
+    start_button = pygame.Rect(
+        SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 80, 200, 40
+    )
+    start_text = subtitle_font.render("Start Game", True, (255, 255, 255))
+
+    # Background
+    background = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    background.fill((10, 10, 20))
+
+    # Main loop
+    while title_screen:
+        # Allow browser to update
         await asyncio.sleep(0)
-    show_title_screen()
+
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if start_button.collidepoint(event.pos):
+                    title_screen = False
+                    return True
+
+        # Get mouse position
+        mouse_pos = pygame.mouse.get_pos()
+
+        # Draw background
+        screen.blit(background, (0, 0))
+
+        # Draw title
+        title_text = title_font.render("Zombie Shooter", True, (0, 200, 255))
+        screen.blit(
+            title_text,
+            (SCREEN_WIDTH // 2 - title_text.get_width() // 2, SCREEN_HEIGHT // 4),
+        )
+
+        # Draw start button
+        start_color = (
+            (0, 150, 250) if start_button.collidepoint(mouse_pos) else (0, 120, 200)
+        )
+        pygame.draw.rect(screen, start_color, start_button, border_radius=5)
+        screen.blit(
+            start_text,
+            (
+                start_button.x + (start_button.width - start_text.get_width()) // 2,
+                start_button.y + (start_button.height - start_text.get_height()) // 2,
+            ),
+        )
+
+        # Update display
+        pygame.display.flip()
+
+    return True
+
+
+# Update the async_game_loop to be a complete implementation
+async def async_game_loop():
+    """Complete async version of game_loop for browser compatibility"""
+    print("Starting async game loop")
+
+    # Create game objects
+    clock = pygame.time.Clock()
+    player = Player()
+    zombies = []
+    bullets = []
+    zombie_spawn_timer = 0
+    game_over = False
+
+    # Wave system variables
+    current_wave = 1
+    wave_timer = 0
+    wave_duration = 1800  # 30 seconds at 60 FPS
+    zombies_per_wave = 1
+
+    # Main game loop
+    while not game_over:
+        # Allow browser to update
+        await asyncio.sleep(0)
+
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+        # Get input state
+        keys = pygame.key.get_pressed()
+        mouse_pos = pygame.mouse.get_pos()
+        mouse_buttons = pygame.mouse.get_pressed()
+
+        # Move player based on keyboard input
+        if keys[pygame.K_w] or keys[pygame.K_UP]:
+            player.move("up")
+        if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+            player.move("down")
+        if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+            player.move("left")
+        if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+            player.move("right")
+
+        # Shoot bullets
+        if mouse_buttons[0]:  # Left mouse button
+            new_bullet = Bullet(
+                player.x + PLAYER_WIDTH // 2,
+                player.y + PLAYER_HEIGHT // 2,
+                mouse_pos[0],
+                mouse_pos[1],
+            )
+            bullets.append(new_bullet)
+            play_sound("shoot")
+
+        # Update wave timer
+        wave_timer += 1
+        if wave_timer >= wave_duration:
+            current_wave += 1
+            wave_timer = 0
+            play_sound("wave_start")
+            zombies_per_wave = 1 + current_wave // 2
+
+        # Spawn zombies
+        zombie_spawn_timer += 1
+        spawn_rate = max(10, 60 // zombies_per_wave)
+        if zombie_spawn_timer >= spawn_rate:
+            zombies_to_spawn = 1 + current_wave // 3
+            for _ in range(zombies_to_spawn):
+                new_zombie = Zombie()
+                new_zombie.speed = min(4.0, ZOMBIE_SPEED * (1 + current_wave * 0.1))
+                zombies.append(new_zombie)
+            zombie_spawn_timer = 0
+
+        # Update zombies
+        for zombie in zombies[:]:
+            zombie.move(player.x + PLAYER_WIDTH // 2, player.y + PLAYER_HEIGHT // 2)
+
+            # Check collision with player
+            if (
+                zombie.x < player.x + PLAYER_WIDTH
+                and zombie.x + ZOMBIE_WIDTH > player.x
+                and zombie.y < player.y + PLAYER_HEIGHT
+                and zombie.y + ZOMBIE_HEIGHT > player.y
+            ):
+                zombies.remove(zombie)
+                player.take_damage(25)
+                play_sound("player_damage")
+                if player.health <= 0:
+                    game_over = True
+                    play_sound("game_over")
+
+        # Update bullets
+        for bullet in bullets[:]:
+            bullet.move()
+
+            # Remove bullets that go off screen
+            if (
+                bullet.x < 0
+                or bullet.x > SCREEN_WIDTH
+                or bullet.y < 0
+                or bullet.y > SCREEN_HEIGHT
+            ):
+                bullets.remove(bullet)
+                continue
+
+            # Check bullet collisions with zombies
+            for zombie in zombies[:]:
+                if (
+                    zombie.x < bullet.x < zombie.x + ZOMBIE_WIDTH
+                    and zombie.y < bullet.y < zombie.y + ZOMBIE_HEIGHT
+                ):
+                    zombies.remove(zombie)
+                    bullets.remove(bullet)
+                    player.score += 10
+                    play_sound("zombie_hit")
+                    break
+
+        # Draw everything
+        screen.fill((10, 10, 20))
+
+        # Draw player
+        screen.blit(player_img, (player.x, player.y))
+
+        # Draw zombies
+        for zombie in zombies:
+            screen.blit(zombie_img, (zombie.x, zombie.y))
+
+        # Draw bullets
+        for bullet in bullets:
+            screen.blit(bullet_img, (bullet.x, bullet.y))
+
+        # Draw UI
+        health_text = SCORE_FONT.render(
+            f"Health: {player.health}", True, (255, 255, 255)
+        )
+        score_text = SCORE_FONT.render(f"Score: {player.score}", True, (255, 255, 255))
+        wave_text = SCORE_FONT.render(f"Wave: {current_wave}", True, (200, 200, 255))
+
+        screen.blit(health_text, (10, 10))
+        screen.blit(score_text, (10, 40))
+        screen.blit(wave_text, (SCREEN_WIDTH - 150, 40))
+
+        # Update display
+        pygame.display.flip()
+        clock.tick(FPS)
+
+    # Game over
+    print("Game over, score:", player.score)
+    return False  # Don't restart automatically
 
 
 # Move the test_sound_system function definition to before it's called
@@ -2299,16 +2533,32 @@ def ensure_sound_directory():
         print("\nUsing placeholder sounds until these files are added.\n")
 
 
+# Add this function to help debug browser issues
+def browser_debug_info():
+    """Print debug information for browser environment."""
+    if IN_BROWSER:
+        print("Browser Environment Information:")
+        print(f"- Screen size: {SCREEN_WIDTH}x{SCREEN_HEIGHT}")
+        print(f"- Pygame version: {pygame.version.ver}")
+        print(f"- Sound enabled: {SOUND_ENABLED}")
+        print(f"- Music enabled: {MUSIC_ENABLED}")
+
+        # Add this call at the beginning of async_main
+        # browser_debug_info()
+
+
 # Update your entry point to handle both desktop and browser
 if __name__ == "__main__":
     initialize_images()
     if IN_BROWSER:
         # Browser mode - use asyncio
+        print("Running in browser mode")
         asyncio.run(async_main())
     else:
         # Desktop mode - use original code
+        print("Running in desktop mode")
         while True:
             show_title_screen()
             restart = game_loop()
             if not restart:
-                continue  # Go back to title screen
+                continue

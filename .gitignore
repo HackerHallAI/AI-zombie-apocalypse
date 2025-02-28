@@ -87,4 +87,9 @@ supabase/
 tmp/
 temp/
 .tmp/
-.temp/ 
+.temp/
+testing/
+
+# Supabase configuration with real credentials
+zombie-js/supabase-config.js
+supabase-config.js

@@ -59,5 +59,3 @@ jobs:
         if: github.event_name == 'push'  # deploy only on push
         id: deployment
         uses: actions/deploy-pages@v4.0.5
-        with:
-          artifact_name: web-build-artifact

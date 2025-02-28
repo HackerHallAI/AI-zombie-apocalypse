@@ -4,7 +4,6 @@ on:
   push:
     branches: [ main ]
 
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -39,10 +38,11 @@ jobs:
           EOL
 
       - name: Upload Artifact
-          uses: actions/upload-pages-artifact@v3
-          with:
-            name: web-build-artifact  # the name of the artifact
-            path: build/web
+        uses: actions/upload-pages-artifact@v3
+        with:
+          name: web-build-artifact  # the name of the artifact
+          path: .
+
   deploy:
     needs: build
     

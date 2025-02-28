@@ -835,16 +835,22 @@ function showGameOverScreen() {
   // Game Over title with pulsing effect
   let glowIntensity = 128 + 64 * sin(frameCount / 30);
   
-  // Draw the title background
-  fill(0, 100, 200);
-  noStroke();
-  rect(SCREEN_WIDTH/2 - 150, 80, 300, 80, 10);
-  
-  // Draw the title text with pulsing
-  fill(0, 200 + glowIntensity/3, 255);
+  // Set text properties for measuring
   textSize(60);
   textAlign(CENTER, CENTER);
-  text("GAME OVER", SCREEN_WIDTH/2, 120);
+  
+  // Measure the text width to make the background fit properly
+  let titleText = "GAME OVER";
+  let titleWidth = textWidth(titleText);
+  
+  // Title background with pulsing effect - make it wider to fit the text
+  fill(0, 150, 255, glowIntensity);
+  noStroke();
+  rect(SCREEN_WIDTH/2 - titleWidth/2 - 30, 80, titleWidth + 60, 80, 10);
+  
+  // Draw the title text
+  fill(255);
+  text(titleText, SCREEN_WIDTH/2, 120);
   
   // Score
   fill(255);
@@ -1066,7 +1072,7 @@ function mousePressed() {
     
     // Main Menu button
     let menuButtonX = SCREEN_WIDTH/2 - 100;
-    let menuButtonY = SCREEN_WIDTH/2 - 100;
+    let menuButtonY = 380;
     
     if (mouseX > menuButtonX && mouseX < menuButtonX + buttonWidth &&
         mouseY > menuButtonY && mouseY < menuButtonY + buttonHeight) {
@@ -1077,7 +1083,7 @@ function mousePressed() {
     
     // View Leaderboard button
     let leaderboardButtonX = SCREEN_WIDTH/2 - 100;
-    let leaderboardButtonY = SCREEN_WIDTH/2 - 100;
+    let leaderboardButtonY = 440;
     
     if (mouseX > leaderboardButtonX && mouseX < leaderboardButtonX + buttonWidth &&
         mouseY > leaderboardButtonY && mouseY < leaderboardButtonY + buttonHeight) {
@@ -1921,15 +1927,6 @@ function loadLeaderboard() {
     console.warn("Supabase client not available - using mock data");
     connectionStatus = "error";
     
-    // Use mock data when Supabase is not configured
-    leaderboardData = [
-      { player_name: "player1", email: "p***@example.com", score: 40 },
-      { player_name: "player2", email: "p***@example.com", score: 30 },
-      { player_name: "player3", email: "p***@example.com", score: 20 },
-      { player_name: "player4", email: "p***@example.com", score: 10 },
-      { player_name: "player5", email: "p***@example.com", score: 5 }
-    ];
-    
     leaderboardLoaded = true;
     return;
   }
@@ -1978,7 +1975,6 @@ async function submitScore() {
       .from('scores')
       .insert([
         { 
-          player_name: playerName || "Anonymous",
           email: playerEmail || "anonymous@example.com", 
           score: player.score,
         }

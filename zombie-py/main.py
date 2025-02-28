@@ -819,9 +819,7 @@ def submit_score_to_leaderboard(email, score):
     try:
         # Insert the score into the scores table with correct column names
         data = (
-            supabase.table("scores")
-            .insert({"player_name": "Player", "email": email, "score": score})
-            .execute()
+            supabase.table("scores").insert({"email": email, "score": score}).execute()
         )
         print(f"Score submitted: {score} for {email}")
         return True

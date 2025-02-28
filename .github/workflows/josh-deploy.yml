@@ -37,6 +37,12 @@ jobs:
             }
           };
           EOL
+
+    - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          name: web-build-artifact  # the name of the artifact
+          path: build/web
   deploy:
     needs: build
     
@@ -59,3 +65,5 @@ jobs:
         if: github.event_name == 'push'  # deploy only on push
         id: deployment
         uses: actions/deploy-pages@v4.0.5
+        with:
+          artifact_name: web-build-artifact

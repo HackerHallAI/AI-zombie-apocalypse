@@ -1,0 +1,95 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env
+.venv
+env/
+env.bak/
+venv.bak/
+.python-version
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.project
+.pydevproject
+.settings/
+
+# Pygame specific
+*.pgm
+*.ppm
+*.bmp
+*.tga
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.xcf
+
+# Generated assets
+assets/
+
+# Pygbag build files
+.pygbag/
+build/
+web/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+log/
+
+# Local configuration
+config.ini
+config.json
+config.yaml
+config.yml
+config.toml
+
+# Supabase local dev
+supabase/
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+.temp/
+testing/
+
+# Supabase configuration with real credentials
+zombie-js/supabase-config.js
+supabase-config.js

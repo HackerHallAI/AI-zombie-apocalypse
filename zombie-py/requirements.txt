@@ -1,0 +1,6 @@
+pygame
+pygbag
+Pillow
+numpy
+supabase
+python-dotenv

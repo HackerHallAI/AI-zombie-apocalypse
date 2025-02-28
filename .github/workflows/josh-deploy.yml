@@ -1,15 +1,13 @@
-name: Deploy to GitHub Pages
+name: Josh Deploy
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
+
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -39,11 +37,27 @@ jobs:
             }
           };
           EOL
+  deploy:
+    needs: build
+    
+    runs-on: ubuntu-latest
+    
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
 
-      - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
+    # Deploy to the github-pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        
+      - name: Deploy to GitHub Pages 🚀
+        if: github.event_name == 'push'  # deploy only on push
+        id: deployment
+        uses: actions/deploy-pages@v4.0.5
         with:
-          folder: .
-          branch: gh-pages
-          token: ${{ secrets.GITHUB_TOKEN }}
-          clean: true 
+          artifact_name: web-build-artifact

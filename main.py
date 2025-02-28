@@ -8,6 +8,7 @@ import numpy as np
 import math
 from dotenv import load_dotenv
 import re
+import pygame.mixer
 
 # Try to import Supabase, but don't fail if it's not available in browser
 try:
@@ -38,6 +39,39 @@ else:
 
 # Initialize Pygame
 pygame.init()
+
+# Initialize sound system after pygame initialization
+pygame.mixer.init()
+
+
+# Define test_sound_system function here, before calling it
+def test_sound_system():
+    """Test if the sound system is working properly."""
+    global SOUND_ENABLED
+
+    # Initialize SOUND_ENABLED if not already defined
+    if "SOUND_ENABLED" not in globals():
+        global SOUND_ENABLED
+        SOUND_ENABLED = True
+
+    try:
+        # Create a simple test sound
+        test_sound = pygame.mixer.Sound(
+            pygame.sndarray.array(np.ones((1000, 2)) * 32767 * 0.1)
+        )
+        test_sound.set_volume(0.1)  # Very quiet
+        test_sound.play()
+        pygame.time.wait(100)  # Wait a bit for the sound to play
+        print("Sound system test successful.")
+        return True
+    except Exception as e:
+        print(f"Sound system test failed: {e}")
+        SOUND_ENABLED = False
+        return False
+
+
+# Now call the function
+test_sound_system()  # Test if sound system is working
 
 # Set up the screen
 SCREEN_WIDTH = 640
@@ -98,6 +132,216 @@ POWERUP_TYPES = [
 # Create assets directory if it doesn't exist
 os.makedirs(ASSETS_DIR, exist_ok=True)
 
+# Sound settings
+SOUND_ENABLED = True  # Allow players to toggle sounds
+SOUNDS = {
+    "shoot": None,
+    "zombie_hit": None,
+    "player_damage": None,
+    "game_over": None,
+    "powerup": None,  # This is ai-assist when we fix this but trying to just get something in the game.
+    "wave_start": None,
+    "shield_hit": None,  # This is currently the sheild on sound but we will see how it works.
+}
+
+# Add volume control variables
+SOUND_VOLUME = 0.7  # Default volume (0.0 to 1.0)
+
+# Add this to the sound settings section
+MUSIC_ENABLED = True
+
+
+# Add this function to handle background music
+def play_background_music():
+    """Start playing background music if available."""
+    if not MUSIC_ENABLED:
+        return
+
+    try:
+        music_file = os.path.join(ASSETS_DIR, "sounds", "background_music.wav")
+        if os.path.exists(music_file):
+            pygame.mixer.music.load(music_file)
+            pygame.mixer.music.set_volume(
+                SOUND_VOLUME * 0.5
+            )  # Lower volume for background music
+            pygame.mixer.music.play(-1)  # Loop indefinitely
+            print("Background music started")
+        else:
+            # Create procedural background music
+            print("Creating procedural background music")
+            create_procedural_music()
+    except Exception as e:
+        print(f"Could not play background music: {e}")
+
+
+# Add this function to create procedural background music
+def create_procedural_music():
+    """Create simple procedural background music."""
+    try:
+        # This is a very simple approach - in a real game you'd want something more sophisticated
+        sample_rate = 44100
+        duration = 5.0  # 5 seconds loop
+
+        # Create a simple ambient drone
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+
+        # Base drone
+        base_freq = 55  # A1 note
+        drone = np.sin(base_freq * 2 * np.pi * t) * 0.2
+
+        # Add some harmonics
+        drone += np.sin(base_freq * 2 * 2 * np.pi * t) * 0.1
+        drone += np.sin(base_freq * 3 * 2 * np.pi * t) * 0.05
+
+        # Add slow pulsing
+        pulse = 0.5 + 0.5 * np.sin(0.5 * 2 * np.pi * t)
+        drone = drone * pulse * 0.7
+
+        # Add some random high notes occasionally
+        for i in range(10):
+            start = random.randint(
+                0, int(sample_rate * duration) - int(sample_rate * 0.5)
+            )
+            freq = random.choice([base_freq * 4, base_freq * 6, base_freq * 8])
+            end = min(start + int(sample_rate * 0.5), int(sample_rate * duration))
+            note_t = np.arange(end - start) / sample_rate
+            note = np.sin(freq * 2 * np.pi * note_t) * 0.1
+            envelope = np.exp(-note_t * 5)  # Decay envelope
+            drone[start:end] += note * envelope
+
+        # Convert to stereo
+        stereo = np.column_stack((drone, drone))
+
+        # Convert to 16-bit signed integers
+        audio = (stereo * 32767).astype(np.int16)
+
+        # Save to a temporary file
+        temp_music_file = os.path.join(ASSETS_DIR, "sounds", "temp_music.wav")
+        from scipy.io import wavfile
+
+        wavfile.write(temp_music_file, sample_rate, audio)
+
+        # Load and play
+        pygame.mixer.music.load(temp_music_file)
+        pygame.mixer.music.set_volume(
+            SOUND_VOLUME * 0.3
+        )  # Lower volume for procedural music
+        pygame.mixer.music.play(-1)  # Loop indefinitely
+
+    except Exception as e:
+        print(f"Could not create procedural music: {e}")
+
+
+# Add this function to create placeholder sounds if files are missing
+def create_placeholder_sound():
+    """Create a simple placeholder sound."""
+    try:
+        # Create a simple beep sound
+        sample_rate = 44100
+        duration = 0.1  # 100ms
+        frequency = 440  # A4 note
+
+        # Generate a sine wave
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+        tone = np.sin(frequency * 2 * np.pi * t) * 0.5
+
+        # Convert to stereo
+        stereo = np.column_stack((tone, tone))
+
+        # Convert to 16-bit signed integers
+        audio = (stereo * 32767).astype(np.int16)
+
+        # Create a Sound object
+        return pygame.mixer.Sound(pygame.sndarray.make_sound(audio))
+    except Exception as e:
+        print(f"Could not create placeholder sound: {e}")
+        return None
+
+
+# Modify the load_sounds function to properly load existing sound files
+def load_sounds():
+    """Load all game sound effects with improved error handling."""
+    global SOUNDS, SOUND_ENABLED
+
+    # Create sounds directory if it doesn't exist
+    sounds_dir = os.path.join(ASSETS_DIR, "sounds")
+    os.makedirs(sounds_dir, exist_ok=True)
+
+    # List of expected sound files
+    sound_files = {
+        "shoot": "shoot.wav",
+        "zombie_hit": "zombie_hit.wav",
+        "player_damage": "player_damage.wav",
+        "game_over": "game_over.wav",
+        "powerup": "powerup.wav",
+        "wave_start": "wave_start.wav",
+        "shield_hit": "shield_hit.wav",
+    }
+
+    # Try to load each sound individually
+    loaded_count = 0
+    missing_count = 0
+
+    for sound_name, filename in sound_files.items():
+        file_path = os.path.join(sounds_dir, filename)
+
+        if os.path.exists(file_path):
+            # File exists, try to load it
+            try:
+                SOUNDS[sound_name] = pygame.mixer.Sound(file_path)
+                SOUNDS[sound_name].set_volume(SOUND_VOLUME)
+                print(f"Successfully loaded sound: {sound_name} from {file_path}")
+                loaded_count += 1
+            except Exception as e:
+                print(f"Error loading sound {sound_name} from {file_path}: {e}")
+                SOUNDS[sound_name] = create_placeholder_sound()
+                print(f"Using placeholder for {sound_name}")
+        else:
+            # File doesn't exist, use placeholder
+            print(f"Sound file missing: {filename}")
+            SOUNDS[sound_name] = create_placeholder_sound()
+            missing_count += 1
+
+    # Print summary
+    if loaded_count > 0:
+        print(f"Successfully loaded {loaded_count} sound files.")
+
+    if missing_count > 0:
+        print(f"Created placeholders for {missing_count} missing sound files.")
+
+    # Enable sound if we have any sounds (real or placeholder)
+    if any(SOUNDS.values()):
+        SOUND_ENABLED = True
+        print("Sound system enabled.")
+    else:
+        SOUND_ENABLED = False
+        print("Sound system disabled - no sounds could be loaded.")
+
+    # Debug: Print the current state of the SOUNDS dictionary
+    print("Current sounds status:")
+    for name, sound in SOUNDS.items():
+        print(f"  - {name}: {'Loaded' if sound is not None else 'None'}")
+
+
+# Function to play a sound
+def play_sound(sound_name):
+    """Play a sound by name if sound is enabled, with better error handling."""
+    if not SOUND_ENABLED:
+        return
+
+    if sound_name not in SOUNDS:
+        print(f"Warning: Attempted to play unknown sound: {sound_name}")
+        return
+
+    if SOUNDS[sound_name] is None:
+        # Silent fail for known but unavailable sounds
+        return
+
+    try:
+        SOUNDS[sound_name].play()
+    except Exception as e:
+        print(f"Error playing sound {sound_name}: {e}")
+
 
 # Function to load images
 def load_image(path, width, height):
@@ -112,6 +356,13 @@ def load_image(path, width, height):
 # Create images programmatically
 def initialize_images():
     global player_img, zombie_img, bullet_img, background_img, blood_splatter_imgs, explosion_imgs, rocks
+
+    # Load sounds and ensure sound directory exists
+    load_sounds()
+    ensure_sound_directory()
+
+    # Start background music
+    play_background_music()
 
     # Create a more detailed player (AI robot with glowing elements)
     player_img = pygame.Surface((PLAYER_WIDTH, PLAYER_HEIGHT), pygame.SRCALPHA)
@@ -411,11 +662,15 @@ class Player:
         """Reduce player health when hit by a zombie."""
         # If Shield is active, don't take damage
         if self.active_powerups["Shield"] > 0:
+            play_sound("shield_hit")
             return
 
         self.health -= amount
+        play_sound("player_damage")
+
         if self.health <= 0:
             self.health = 0
+            play_sound("game_over")
             return True  # Player is dead
         return False
 
@@ -970,6 +1225,7 @@ def game_loop():
             bullets.extend(new_bullets)
             # Set cooldown based on power-up status
             mouse_cooldown = 5 if player.active_powerups["Rapid Fire"] > 0 else 10
+            play_sound("shoot")  # Play shooting sound
 
         if mouse_cooldown > 0:
             mouse_cooldown -= 1
@@ -979,6 +1235,7 @@ def game_loop():
         if keys[pygame.K_SPACE] and mouse_cooldown <= 0:
             bullets.extend(player.shoot())
             mouse_cooldown = 10
+            play_sound("shoot")  # Play shooting sound
 
         # Handle player input
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
@@ -998,6 +1255,7 @@ def game_loop():
             wave_timer = 0
             wave_message = f"Wave {current_wave} incoming!"
             wave_message_timer = 180  # Show for 3 seconds
+            play_sound("wave_start")  # Play wave start sound
 
             # Increase difficulty with each wave
             zombies_per_wave = (
@@ -1046,9 +1304,11 @@ def game_loop():
                 # Only take damage if shield is not active
                 if player.active_powerups["Shield"] <= 0:
                     player.take_damage(25)  # Increased from 10 to 25 (4 hits to kill)
+                    play_sound("player_damage")  # Play player damage sound
                 else:
                     # Shield absorbs the hit
                     player.score += 5  # Bonus for blocking with shield
+                    play_sound("shield_hit")  # Play shield hit sound
                 continue
 
             # Check bullet collisions
@@ -1065,6 +1325,8 @@ def game_loop():
                     )
                     # Add explosion effect for the bullet impact
                     explosions.append(Explosion(bullet.x, bullet.y))
+
+                    play_sound("zombie_hit")  # Play zombie hit sound
 
                     zombies.remove(zombie)
                     bullets.remove(bullet)
@@ -1086,6 +1348,7 @@ def game_loop():
         # Check for game over
         if player.health <= 0:
             game_over = True
+            play_sound("game_over")  # Play game over sound
 
         # Update player power-ups
         player.update_powerups()
@@ -1116,6 +1379,7 @@ def game_loop():
                 message_text = player.apply_powerup(powerup)
                 message_timer = 120  # Show message for 2 seconds
                 powerups.remove(powerup)
+                play_sound("powerup")  # Play powerup sound
 
                 # Special handling for AI Assistant
                 if powerup.name == "AI Assistant" and zombies:
@@ -1318,6 +1582,8 @@ def game_loop():
 
 def show_title_screen():
     """Display an AI-themed title screen with leaderboard option."""
+    global SOUND_ENABLED, SOUND_VOLUME  # Declare globals at the beginning of the function
+
     title_screen = True
     title_font = pygame.font.SysFont("arial", 50)
     subtitle_font = pygame.font.SysFont("arial", 24)
@@ -1482,7 +1748,6 @@ def show_title_screen():
                 + (leaderboard_button.height - leaderboard_text.get_height()) // 2,
             ),
         )
-
         pygame.display.flip()
         pygame.time.Clock().tick(60)
 
@@ -1984,6 +2249,54 @@ async def async_show_title_screen():
     if IN_BROWSER:
         await asyncio.sleep(0)
     show_title_screen()
+
+
+# Move the test_sound_system function definition to before it's called
+# Add this function before initialize_images
+def test_sound_system():
+    """Test if the sound system is working properly."""
+    global SOUND_ENABLED
+
+    # Initialize SOUND_ENABLED if not already defined
+    if "SOUND_ENABLED" not in globals():
+        global SOUND_ENABLED
+        SOUND_ENABLED = True
+
+    try:
+        # Create a simple test sound
+        test_sound = pygame.mixer.Sound(
+            pygame.sndarray.array(np.ones((1000, 2)) * 32767 * 0.1)
+        )
+        test_sound.set_volume(0.1)  # Very quiet
+        test_sound.play()
+        pygame.time.wait(100)  # Wait a bit for the sound to play
+        print("Sound system test successful.")
+        return True
+    except Exception as e:
+        print(f"Sound system test failed: {e}")
+        SOUND_ENABLED = False
+        return False
+
+
+# Add this after the load_sounds function to create the sound directory and explain how to add sounds
+def ensure_sound_directory():
+    """Create the sound directory and print instructions for adding sound files."""
+    sounds_dir = os.path.join(ASSETS_DIR, "sounds")
+    os.makedirs(sounds_dir, exist_ok=True)
+
+    # Check if the directory is empty
+    if not os.listdir(sounds_dir):
+        print("\nSound Directory Information:")
+        print(f"Sound files should be placed in: {os.path.abspath(sounds_dir)}")
+        print("Expected sound files (WAV format):")
+        print("  - shoot.wav       - Played when firing a bullet")
+        print("  - zombie_hit.wav  - Played when a zombie is hit")
+        print("  - player_damage.wav - Played when the player takes damage")
+        print("  - game_over.wav   - Played when the game ends")
+        print("  - powerup.wav     - Played when collecting a power-up")
+        print("  - wave_start.wav  - Played when a new wave begins")
+        print("  - shield_hit.wav  - Played when a shield blocks damage")
+        print("\nUsing placeholder sounds until these files are added.\n")
 
 
 # Update your entry point to handle both desktop and browser
